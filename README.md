@@ -114,17 +114,19 @@ Evita:
 
 ### 🔹 Declaração das variaveis
 
+```pascal
 private 
   FAuditoriaContexto: IAuditoriaContexto;
   FAuditoriaEvento: IAuditoriaEvento;
   FAuditoriaView: IAuditoriaView;
   FAuditoriaAlteracao: TAuditoriaAlteracao;
+```
 
 ---
 
 ### 🔹 Aplicação nos eventos
-
 > Create
+```pascal
 procedure TfTeste.FormCreate(Sender: TObject);
 begin
   FAuditoriaContexto := TAuditoriaFactory.CriarContexto
@@ -147,8 +149,10 @@ begin
     FAuditoriaView
   );
 end;
+```
 
 > Show
+```pascal
 procedure TfTeste.FormShow(Sender: TObject);
 begin
   FAuditoriaView.CapturarEstadoInicial(Self);
@@ -167,10 +171,11 @@ begin
     .SetDescricao('Salvou cadastro de funcionário')
     .Gerar;
 end;
-
+```
 ---
 
 ### 🔹 Estrutura de Pastas
+```pascal
 Auditoria/
   uIAuditoria.pas
   uIAuditPersistence.pas
@@ -182,7 +187,7 @@ Auditoria/
   uAuditoriaEvento.pas
   uAuditoriaAlteracao.pas
   uAuditoriaFactory.pas
-
+```
 ---
 
 ### 🧠 Boas Práticas
