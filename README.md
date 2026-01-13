@@ -125,7 +125,7 @@ private
 ---
 
 ### 🔹 Aplicação nos eventos
-> Create
+> FormCreate
 ```pascal
 procedure TfTeste.FormCreate(Sender: TObject);
 begin
@@ -151,14 +151,16 @@ begin
 end;
 ```
 
-> Show
+> FormShow
 ```pascal
 procedure TfTeste.FormShow(Sender: TObject);
 begin
   FAuditoriaView.CapturarEstadoInicial(Self);
 end;
+```
 
 > Botão Salvar
+```pascal
 procedure TfTeste.btnSalvarClick(Sender: TObject);
 begin
   GravarDadosNoBanco;
