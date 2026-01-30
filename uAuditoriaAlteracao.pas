@@ -8,16 +8,24 @@ uses
   System.Generics.Collections,
 
   uAuditoriaIntf,
-  uAuditPersistenceIntf;
+  uAuditPersistenceIntf,
+  uAuditoriaTipos;
 
 type
   TAuditoriaAlteracao = class(TInterfacedObject, IAuditoriaAlteracao)
   private
+    class var FInstance: IAuditoriaAlteracao;
+
     FPersistence: IAuditPersistence;
     FContexto: IAuditoriaContexto;
     FView: IAuditoriaView;
+    FApenasEvento: Boolean;
 
   public
+    class function GetInstance(): IAuditoriaAlteracao;
+
+    function ApenasEvento: IAuditoriaAlteracao;
+
     constructor Create(
       const APersistence: IAuditPersistence;
       const AContexto: IAuditoriaContexto;
@@ -30,9 +38,15 @@ type
 implementation
 
 uses
-  System.DateUtils;
+  System.DateUtils, uAuditoriaNarrativa, uAuditoriaPersistirGeral, uAuditoriaPersistirSuporte, uBaseDAO, uAuditoriaFactory, uAuditoriaView, uAuditoriaContexto;
 
 { TAuditoriaAlteracao }
+
+function TAuditoriaAlteracao.ApenasEvento: IAuditoriaAlteracao;
+begin
+  FApenasEvento := True;
+  Result := Self;
+end;
 
 constructor TAuditoriaAlteracao.Create(
   const APersistence: IAuditPersistence;
@@ -43,53 +57,59 @@ begin
   FPersistence := APersistence;
   FContexto := AContexto;
   FView := AView;
+  FApenasEvento:= False;
+end;
+
+class function TAuditoriaAlteracao.GetInstance: IAuditoriaAlteracao;
+begin
+  if not Assigned(FInstance) then
+    FInstance := TAuditoriaFactory.CriarAlteracao(FDBaseDAO,
+                                                  TAuditoriaContexto.GetInstance,
+                                                  TAuditoriaView.GetInstance);
+  Result := FInstance;
 end;
 
 procedure TAuditoriaAlteracao.Persistir;
 var
-  Fields: TDictionary<string, Variant>;
-  Agora: TDateTime;
+  Persistidor: IAuditoriaPersistir;
 begin
-  if (FPersistence = nil) or (FView = nil) then
+  if (FPersistence = nil)  then
     Exit;
 
-  if FView.GetAlteracoes.Count = 0 then
-    Exit;
+  if Assigned(FView) then
+    if (FView.GetAlteracoes.Count = 0) and (FApenasEvento = False) then
+        Exit;
 
-  Agora := Now;
-  Fields := TDictionary<string, Variant>.Create;
-  try
-    Fields.Add('datahora_acao', Agora);
-    Fields.Add('data_acao', DateOf(Agora));
-    Fields.Add('hora_acao', TimeOf(Agora));
+  case FContexto.GetPoliticaAuditoria of
+    apApenasGeral:
+      if not FContexto.EhSuporte then
+        Persistidor := TAuditoriaPersistirGeral.Create(
+          FPersistence, FContexto, FView
+        );
 
-    Fields.Add('modulo', FContexto.GetModulo);
-    Fields.Add('tela',   FContexto.GetTela);
-    Fields.Add('origem', FContexto.GetOrigem);
+    apApenasSuporte:
+      if FContexto.EhSuporte then
+        Persistidor := TAuditoriaPersistirSuporte.Create(
+          FPersistence, FContexto, FView
+        );
 
-    Fields.Add('usuario_id',   FContexto.GetUsuarioId);
-    Fields.Add('usuario_nome', FContexto.GetUsuarioNome);
-
-    Fields.Add('unidade_id',   FContexto.GetUnidadeId);
-    Fields.Add('unidade_nome', FContexto.GetUnidadeNome);
-
-    Fields.Add('empregador_id',   FContexto.GetEmpregadorId);
-    Fields.Add('empregador_nome', FContexto.GetEmpregadorNome);
-
-    Fields.Add('profissional_id',   FContexto.GetProfissionalId);
-    Fields.Add('profissional_nome', FContexto.GetProfissionalNome);
-
-    Fields.Add('operacao', 'ALTERACAO');
-    Fields.Add('evento',   'Alteração de dados');
-
-    Fields.Add('dados_antes',  FView.AsTextoAntes);
-    Fields.Add('dados_depois', FView.AsTextoDepois);
-
-    FPersistence.Insert('nemesis.cp_auditoria', Fields);
-  finally
-    Fields.Free;
+    apGeralESuporte:
+      begin
+        if FContexto.EhSuporte then
+          Persistidor := TAuditoriaPersistirSuporte.Create(
+            FPersistence, FContexto, FView
+          )
+        else
+          Persistidor := TAuditoriaPersistirGeral.Create(
+            FPersistence, FContexto, FView
+          );
+      end;
   end;
+
+  if Assigned(Persistidor) then
+    Persistidor.Persistir;
 end;
+
 
 end.
 

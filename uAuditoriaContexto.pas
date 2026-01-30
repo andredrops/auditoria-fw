@@ -3,11 +3,16 @@ unit uAuditoriaContexto;
 interface
 
 uses
-  uAuditoriaIntf;
+  uAuditoriaIntf, uAuditoriaTipos;
 
 type
   TAuditoriaContexto = class(TInterfacedObject, IAuditoriaContexto)
   private
+    class var FInstance : IAuditoriaContexto;
+
+    FEhSuporte: Boolean;
+    FPoliticaAuditoria: TAuditoriaPolitica;
+
     FModulo: string;
     FTela: string;
     FOrigem: string;
@@ -28,17 +33,20 @@ type
     FSuporteNome: string;
     FAmbiente: Integer;
 
+    FOperacao: string;
+    FDescricao: string;
+    FEvento: string;
+    FIdAfetado: string;
+
   public
-    function SetModulo(const AValue: string): IAuditoriaContexto;
-    function GetModulo: string;
+    class function GetInstance(): IAuditoriaContexto;
 
-    function SetTela(const AValue: string): IAuditoriaContexto;
-    function GetTela: string;
+    function EhSuporte: Boolean;
+    function GetPoliticaAuditoria: TAuditoriaPolitica;
 
-    function SetOrigem(const AValue: string): IAuditoriaContexto;
-    function GetOrigem: string;
+    function AtivarPoliticaApenasSuporte(): IAuditoriaContexto;
+    function AtivarPoliticaApenasGeral(): IAuditoriaContexto;
 
-    function SetUsuario(const AValue: string): IAuditoriaContexto;
     function SetUsuarioId(const AValue: Int64): IAuditoriaContexto;
     function SetUsuarioNome(const AValue: string): IAuditoriaContexto;
     function GetUsuarioId: Int64;
@@ -59,15 +67,26 @@ type
     function GetProfissionalId: Int64;
     function GetProfissionalNome: string;
 
-    function SetSuporteLogin(const AValue: string): IAuditoriaContexto;
-    function SetSuporteNome(const AValue: string): IAuditoriaContexto;
-    function SetAmbiente(const AValue: Integer): IAuditoriaContexto;
-    function GetSuporteLogin: string;
-    function GetSuporteNome: string;
-    function GetAmbiente: Integer;
+    function SetModulo(const AValue: string): IAuditoriaContexto;
+    function GetModulo: string;
+
+    function SetTela(const AValue: string): IAuditoriaContexto;
+    function GetTela: string;
+
+    function SetIdAfetado(const AValue: string): IAuditoriaContexto;
+    function GetIdAfetado: string;
+
+    function SetEvento(const AValue: string): IAuditoriaContexto;
+    function GetEvento: string;
+
+  public
+    constructor Create(const AEhSuporte: Boolean;
+                       const APolitica: TAuditoriaPolitica);
   end;
 
 implementation
+
+uses udmDados, uAuditoriaFactory;
 
 function TAuditoriaContexto.SetModulo(const AValue: string): IAuditoriaContexto;
 begin
@@ -89,23 +108,6 @@ end;
 function TAuditoriaContexto.GetTela: string;
 begin
   Result := FTela;
-end;
-
-function TAuditoriaContexto.SetOrigem(const AValue: string): IAuditoriaContexto;
-begin
-  FOrigem := AValue;
-  Result := Self;
-end;
-
-function TAuditoriaContexto.GetOrigem: string;
-begin
-  Result := FOrigem;
-end;
-
-function TAuditoriaContexto.SetUsuario(const AValue: string): IAuditoriaContexto;
-begin
-  FUsuarioNome := AValue;
-  Result := Self;
 end;
 
 function TAuditoriaContexto.SetUsuarioId(const AValue: Int64): IAuditoriaContexto;
@@ -164,6 +166,18 @@ begin
   Result := Self;
 end;
 
+function TAuditoriaContexto.SetEvento(const AValue: string): IAuditoriaContexto;
+begin
+  FEvento := AValue;
+  Result := Self;
+end;
+
+function TAuditoriaContexto.SetIdAfetado(const AValue: string): IAuditoriaContexto;
+begin
+  FIdAfetado := AValue;
+  Result := Self;
+end;
+
 function TAuditoriaContexto.GetEmpregadorId: Int64;
 begin
   Result := FEmpregadorId;
@@ -172,6 +186,28 @@ end;
 function TAuditoriaContexto.GetEmpregadorNome: string;
 begin
   Result := FEmpregadorNome;
+end;
+
+function TAuditoriaContexto.GetEvento: string;
+begin
+  Result := FEvento;
+end;
+
+function TAuditoriaContexto.GetIdAfetado: string;
+begin
+  Result := FIdAfetado;
+end;
+
+class function TAuditoriaContexto.GetInstance: IAuditoriaContexto;
+var
+  LEhSuporte: Boolean;
+begin
+  LEhSuporte := dmDados.UsuarioLogin.EhUsuarioSupervisorOuSuporte;
+
+  if not Assigned(FInstance) then
+    FInstance := TAuditoriaFactory.CriarContexto(LEhSuporte, TAuditoriaFactory.PoliticaGeralESuporte);
+
+  Result := FInstance;
 end;
 
 function TAuditoriaContexto.SetProfissionalId(const AValue: Int64): IAuditoriaContexto;
@@ -186,6 +222,11 @@ begin
   Result := Self;
 end;
 
+function TAuditoriaContexto.GetPoliticaAuditoria: TAuditoriaPolitica;
+begin
+  Result := FPoliticaAuditoria;
+end;
+
 function TAuditoriaContexto.GetProfissionalId: Int64;
 begin
   Result := FProfissionalId;
@@ -196,37 +237,29 @@ begin
   Result := FProfissionalNome;
 end;
 
-function TAuditoriaContexto.SetSuporteLogin(const AValue: string): IAuditoriaContexto;
+
+function TAuditoriaContexto.AtivarPoliticaApenasGeral: IAuditoriaContexto;
 begin
-  FSuporteLogin := AValue;
   Result := Self;
+  FPoliticaAuditoria := apApenasGeral;
 end;
 
-function TAuditoriaContexto.SetSuporteNome(const AValue: string): IAuditoriaContexto;
+function TAuditoriaContexto.AtivarPoliticaApenasSuporte: IAuditoriaContexto;
 begin
-  FSuporteNome := AValue;
   Result := Self;
+  FPoliticaAuditoria := apApenasSuporte;
 end;
 
-function TAuditoriaContexto.SetAmbiente(const AValue: Integer): IAuditoriaContexto;
+constructor TAuditoriaContexto.Create(const AEhSuporte: Boolean; const APolitica: TAuditoriaPolitica);
 begin
-  FAmbiente := AValue;
-  Result := Self;
+  inherited Create;
+  FEhSuporte := AEhSuporte;
+  FPoliticaAuditoria := APolitica;
 end;
 
-function TAuditoriaContexto.GetSuporteLogin: string;
+function TAuditoriaContexto.EhSuporte: Boolean;
 begin
-  Result := FSuporteLogin;
-end;
-
-function TAuditoriaContexto.GetSuporteNome: string;
-begin
-  Result := FSuporteNome;
-end;
-
-function TAuditoriaContexto.GetAmbiente: Integer;
-begin
-  Result := FAmbiente;
+  Result := FEhSuporte;
 end;
 
 end.

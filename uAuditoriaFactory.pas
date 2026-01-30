@@ -6,47 +6,55 @@ uses
   uAuditoriaIntf,
   uAuditPersistenceIntf,
   uAuditoriaContexto,
-  uAuditoriaEvento,
   uAuditoriaView,
   uAuditoriaAlteracao,
   uAuditPersistenceZeos,
-  ZConnection;
+  ZConnection, uAuditoriaTipos;
 
 type
+
   TAuditoriaFactory = class
   public
-    class function CriarContexto(): IAuditoriaContexto;
-    class function CriarEvento(const AConn: TZConnection;
-                               const AContexto: IAuditoriaContexto): IAuditoriaEvento;
+    class function CriarContexto(const AEhSuporte: Boolean;
+                                 const APolitica: TAuditoriaPolitica): IAuditoriaContexto;
     class function CriarView(): IAuditoriaView;
     class function CriarAlteracao(const AConn: TZConnection;
                                   const AContexto: IAuditoriaContexto;
                                   const AView: IAuditoriaView): IAuditoriaAlteracao;
+    class function PoliticaApenasGeral: TAuditoriaPolitica;
+    class function PoliticaApenasSuporte: TAuditoriaPolitica;
+    class function PoliticaGeralESuporte: TAuditoriaPolitica;
+
   end;
 
 implementation
 
 { TAuditoriaFactory }
 
-class function TAuditoriaFactory.CriarContexto: IAuditoriaContexto;
+class function TAuditoriaFactory.CriarContexto(const AEhSuporte: Boolean;
+                                               const APolitica: TAuditoriaPolitica): IAuditoriaContexto;
 begin
-  Result := TAuditoriaContexto.Create;
-end;
-
-class function TAuditoriaFactory.CriarEvento(
-  const AConn: TZConnection;
-  const AContexto: IAuditoriaContexto
-): IAuditoriaEvento;
-begin
-  Result := TAuditoriaEvento.Create(
-    TAuditPersistenceZeos.Create(AConn),
-    AContexto
-  );
+  Result := TAuditoriaContexto.Create(AEhSuporte, APolitica);
 end;
 
 class function TAuditoriaFactory.CriarView: IAuditoriaView;
 begin
   Result := TAuditoriaView.Create;
+end;
+
+class function TAuditoriaFactory.PoliticaApenasGeral: TAuditoriaPolitica;
+begin
+  Result := apApenasGeral;
+end;
+
+class function TAuditoriaFactory.PoliticaApenasSuporte: TAuditoriaPolitica;
+begin
+  Result := apApenasSuporte;
+end;
+
+class function TAuditoriaFactory.PoliticaGeralESuporte: TAuditoriaPolitica;
+begin
+  Result := apGeralESuporte;
 end;
 
 class function TAuditoriaFactory.CriarAlteracao(const AConn: TZConnection;

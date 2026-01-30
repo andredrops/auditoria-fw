@@ -14,14 +14,18 @@ uses
 type
   TAuditoriaEvento = class(TInterfacedObject, IAuditoriaEvento)
   private
+    class var FInstance: IAuditoriaEvento;
+
     FPersistence: IAuditPersistence;
     FContexto: IAuditoriaContexto;
 
     FOperacao: string;
     FDescricao: string;
 
-    procedure PersistirEvento;
+    procedure Persistir;
   public
+    class function GetInstance(): IAuditoriaEvento;
+
     constructor Create(
       APersistence: IAuditPersistence;
       AContexto: IAuditoriaContexto
@@ -36,7 +40,7 @@ type
 implementation
 
 uses
-  System.DateUtils;
+  System.DateUtils, uAuditoriaTipos, uAuditoriaPersistirGeral, uAuditoriaPersistirSuporte, uBaseDAO, uAuditoriaFactory;
 
 constructor TAuditoriaEvento.Create(
   APersistence: IAuditPersistence;
@@ -61,68 +65,54 @@ end;
 
 procedure TAuditoriaEvento.Gerar;
 begin
-  PersistirEvento;
+  Self.Persistir();
 end;
 
-procedure TAuditoriaEvento.PersistirEvento;
+
+class function TAuditoriaEvento.GetInstance: IAuditoriaEvento;
+begin
+  if not Assigned(FInstance) then
+    FInstance := TAuditoriaFactory.CriarEvento(FDBaseDAO, TAuditoriaContexto.GetInstance);
+  Result := FInstance;
+end;
+
+procedure TAuditoriaEvento.Persistir;
 var
-  Fields: TDictionary<string, Variant>;
-  Agora: TDateTime;
-  Tabela: string;
-  Ctx: TAuditoriaContexto;
+  Persistidor: IAuditoriaPersistir;
 begin
   if FPersistence = nil then
     Exit;
 
-  Ctx := FContexto as TAuditoriaContexto;
+  case FContexto.GetPoliticaAuditoria of
+    apApenasGeral:
+      if not FContexto.EhSuporte then
+        Persistidor := TAuditoriaPersistirGeral.Create(
+          FPersistence, FContexto, nil
+        );
 
-  Agora := Now;
-  Fields := TDictionary<string, Variant>.Create;
-  try
-    Fields.Add('datahora_acao', Agora);
-    Fields.Add('data_acao', DateOf(Agora));
-    Fields.Add('hora_acao', TimeOf(Agora));
-    Fields.Add('modulo', Ctx.GetModulo);
+    apApenasSuporte:
+      if FContexto.EhSuporte then
+        Persistidor := TAuditoriaPersistirSuporte.Create(
+          FPersistence, FContexto, nil
+        );
 
-    if Trim(Ctx.GetSuporteLogin) <> '' then
-    begin
-      Tabela := 'nemesis.cp_auditoria_suporte';
-
-      Fields.Add('suporte_login', Ctx.GetSuporteLogin);
-      Fields.Add('suporte_nome',  Ctx.GetSuporteNome);
-      Fields.Add('ambiente',      Ctx.GetAmbiente);
-
-      Fields.Add('acao', FOperacao);
-      Fields.Add('descricao', FDescricao);
-    end
-    else
-    begin
-      Tabela := 'nemesis.cp_auditoria';
-
-      Fields.Add('tela',   Ctx.GetTela);
-      Fields.Add('origem', Ctx.GetOrigem);
-
-      Fields.Add('usuario_id',   Ctx.GetUsuarioId);
-      Fields.Add('usuario_nome', Ctx.GetUsuarioNome);
-
-      Fields.Add('unidade_id',   Ctx.GetUnidadeId);
-      Fields.Add('unidade_nome', Ctx.GetUnidadeNome);
-
-      Fields.Add('empregador_id',   Ctx.GetEmpregadorId);
-      Fields.Add('empregador_nome', Ctx.GetEmpregadorNome);
-
-      Fields.Add('profissional_id',   Ctx.GetProfissionalId);
-      Fields.Add('profissional_nome', Ctx.GetProfissionalNome);
-
-      Fields.Add('operacao', FOperacao);
-      Fields.Add('evento',   FDescricao);
-    end;
-
-    FPersistence.Insert(Tabela, Fields);
-  finally
-    Fields.Free;
+    apGeralESuporte:
+      begin
+        if FContexto.EhSuporte then
+          Persistidor := TAuditoriaPersistirSuporte.Create(
+            FPersistence, FContexto, nil
+          )
+        else
+          Persistidor := TAuditoriaPersistirGeral.Create(
+            FPersistence, FContexto, nil
+          );
+      end;
   end;
+
+  if Assigned(Persistidor) then
+    Persistidor.Persistir;
 end;
+
 
 end.
 

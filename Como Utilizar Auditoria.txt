@@ -1,0 +1,73 @@
+--------------------------------------------------
+*** Como usar Auditoria EVENTOS
+Objetivo: Quando não precisa registrar alteração de dados, ex: Imprimir, Exportar, Etc.
+--------------------------------------------------
+
+ >> Adicionar uses: 
+  uAuditoriaContexto,
+  uAuditoriaView,
+  uAuditoriaAlteracao;
+
+>>SALVAR (botão ou evento que persiste no banco)
+  
+  //Exemplo para construir LEvento
+  LEvento := IIF(EhAtivar,'Empregador Ativado ', 'Empregador Desativado ');
+  LEvento := LEvento + SLineBreak + SLineBreak +
+             '*** DADOS DO EMPREGADOR:' + sLineBreak +
+             '• Empregador: ' + dmDados.sqlCp_Empregadoremp_id.asString + ' - ' +
+                                        dmDados.sqlCp_Empregadoremp_razao_social.asString + sLineBreak +
+             '• CPF/CNPJ: ' + dmDados.sqlCp_Empregadoremp_cpf_cnpj.asString + sLineBreak +
+             '• Cód. Interno: ' + dmDados.sqlCp_Empregadoremp_codigo_interno.asString;  
+  
+  TAuditoriaContexto
+    .GetInstance
+    .SetModulo(Self.Caption)
+    .SetTela(Self.Name)
+    .SetIdAfetado('ID do Empregador = ' + dmDados.sqlCp_Empregadoremp_id.AsString)
+    .SetEvento(LEvento);
+
+  TAuditoriaAlteracao
+    .GetInstance
+    .ApenasEvento
+    .Persistir;
+
+	
+--------------------------------------------------
+*** Como usar Auditoria ALTERAÇÕES
+Objetivo: Quando é preciso registrar alteração de dados(campos), ex: Nome, descrição, etc.
+--------------------------------------------------
+ >>Adicionar uses:
+  uAuditoriaContexto,
+  uAuditoriaView,
+  uAuditoriaAlteracao;
+
+>>no Evento: onFormShow
+  TAuditoriaView
+    .GetInstance
+    .CapturarEstadoInicial(Self);
+
+  TAuditoriaContexto.GetInstance
+    .SetModulo(Self.Caption)
+    .SetTela(Self.Name)
+    .SetEvento(IIF((Tag > 0),'Alteração','Novo'));
+
+
+>>SALVAR (botão ou evento que persisite no banco)
+  TAuditoriaContexto
+    .GetInstance
+    .SetIdAfetado('ID do Funcionario = ' + IntToStr(Tag));
+	
+    #Opcional, caso não informar gera para os dois:
+	.AtivarPoliticaApenasGeral  //grava na tabela cp_auditoria
+	.AtivarPoliticaApenasSuporte //grava na tabela cp_auditoria_suporte
+
+
+  TAuditoriaView
+    .GetInstance
+    .GerarAuditoria(Self);
+
+  TAuditoriaAlteracao
+    .GetInstance
+    .Persistir;
+
+
